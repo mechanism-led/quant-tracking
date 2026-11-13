@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>机制主导量化 · 跟踪记录</title>
+<style>
+  :root{
+    --ink:#16212e; --ink2:#5a6b7d; --line:#e3e8ee;
+    --bg:#f6f8fa; --card:#fff;
+    --brand:#1b3a6b; --brand2:#2f6fb5; --accent:#b0392b;
+    --sim:#1b3a6b; --real:#0f766e; --bench:#9aa5b1;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.65;
+       font-family:"Source Han Sans SC","Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif;
+       font-size:15px;}
+  .wrap{max-width:940px;margin:0 auto;padding:36px 22px 72px;}
+  .ph{background:#fffbe6;border-bottom:1px dashed #d6a400;padding:0 3px;border-radius:2px;}
+
+  /* 页头 */
+  header.page{border-left:5px solid var(--brand);padding:4px 0 4px 18px;margin-bottom:26px;}
+  header.page h1{margin:0 0 6px;font-size:26px;letter-spacing:.5px;}
+  header.page .pos{color:var(--ink2);font-size:15px;margin-bottom:12px;}
+  .meta{display:flex;flex-wrap:wrap;gap:10px 26px;font-size:13.5px;color:var(--ink2);}
+  .meta b{color:var(--ink);font-weight:600;}
+
+  /* 模板提示条（正式部署时删除本段） */
+  .tip{background:#eef4fc;border:1px solid #cfe0f5;border-radius:8px;padding:12px 16px;
+       font-size:13.5px;color:#24507f;margin-bottom:26px;}
+
+  /* 卡片 */
+  section.card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+       padding:22px 24px;margin-bottom:22px;box-shadow:0 1px 2px rgba(16,33,52,.04);}
+  section.card > h2{margin:0 0 4px;font-size:18px;color:var(--brand);}
+  section.card > .sub{color:var(--ink2);font-size:13.5px;margin-bottom:16px;}
+
+  /* 图 */
+  .chart{width:100%;height:auto;display:block;}
+  .legend{display:flex;gap:24px;flex-wrap:wrap;margin-top:12px;font-size:13.5px;color:var(--ink2);}
+  .legend i{display:inline-block;width:22px;height:3px;border-radius:2px;margin-right:7px;vertical-align:middle;}
+  .c-sim{background:var(--sim);} .c-real{background:var(--real);} .c-bench{background:var(--bench);}
+
+  /* 表 */
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right;}
+  th:first-child,td:first-child{text-align:left;}
+  thead th{background:#f3f6fa;color:#33506e;font-weight:600;font-size:13px;
+       border-bottom:1px solid #d9e2ec;white-space:nowrap;}
+  tbody tr:hover{background:#fafcfe;}
+  td.neg{color:var(--accent);}
+  .tbl-note{margin-top:10px;font-size:12.5px;color:var(--ink2);}
+
+  /* 指标块 */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;}
+  .kpi{background:#f7fafd;border:1px solid #e1eaf4;border-radius:8px;padding:12px 14px;}
+  .kpi .k{font-size:12.5px;color:var(--ink2);margin-bottom:4px;}
+  .kpi .v{font-size:19px;font-weight:700;color:var(--brand);letter-spacing:.3px;}
+  .kpi .v.accent{color:var(--accent);}
+  .kpi .v.good{color:#0f766e;}
+
+  .split{list-style:none;margin:0 0 18px;padding:0;font-size:14px;}
+  .split li{display:flex;justify-content:space-between;gap:16px;padding:8px 0;
+       border-bottom:1px dashed var(--line);}
+  .split li:last-child{border-bottom:none;}
+  .split .lbl{color:var(--ink2);}
+  .split .num{font-variant-numeric:tabular-nums;font-weight:600;}
+  .split .zero{color:#0f766e;font-weight:700;}
+
+  .method{background:#f9fbfd;border-left:3px solid var(--brand2);border-radius:0 6px 6px 0;
+       padding:14px 18px;font-size:13.5px;color:#3a4a5c;margin:6px 0 0;}
+  .method ol{margin:0;padding-left:20px;}
+  .method li{margin-bottom:7px;}
+  .method li:last-child{margin-bottom:0;}
+
+  /* 审计区 */
+  .audit-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:680px){.audit-grid{grid-template-columns:1fr;}}
+  .panel{border:1px solid var(--line);border-radius:8px;padding:14px 16px;}
+  .panel h3{margin:0 0 10px;font-size:14px;color:var(--brand);}
+  .panel.pub h3{color:#0f766e;}
+  .panel.priv h3{color:var(--accent);}
+  .panel ul{margin:0;padding-left:18px;font-size:13.5px;color:#3a4a5c;}
+  .panel li{margin-bottom:6px;}
+  code{background:#eef2f6;border-radius:4px;padding:1px 6px;font-size:12.5px;
+       font-family:ui-monospace,Consolas,Menlo,monospace;}
+
+  /* 免责 */
+  .disclaimer{background:#fbfbfc;border:1px solid var(--line);border-radius:8px;
+       padding:16px 18px;font-size:13px;color:#4b5a6b;}
+  .disclaimer p{margin:0 0 8px;}
+  .disclaimer p:last-child{margin:0;}
+
+  footer.page{margin-top:8px;text-align:center;color:#93a1b0;font-size:12.5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ 页头 ============ -->
+  <header class="page">
+    <h1>机制主导量化 · 跟踪记录</h1>
+    <div class="pos">基于内生状态约束的策略研究与验证记录（个人研究记录，非产品业绩）</div>
+    <div class="meta">
+      <span>起始日：<b class="ph">2026-XX-XX</b></span>
+      <span>当前版本：<b class="ph">v1.0</b></span>
+      <span>最后更新：<b class="ph">2026-XX-XX</b></span>
+      <span>已运行交易日：<b class="ph">XX</b> 天</span>
+      <span>覆盖路径：<b class="ph">50</b> 条</span>
+    </div>
+  </header>
+
+  <div class="tip">
+    <b>模板使用说明（正式部署时删除本段）：</b>所有<span class="ph">浅黄底</span>内容为待替换的数据占位符。
+    本页为自包含单文件，无外部依赖，可直接部署到静态托管或本地打开。
+  </div>
+
+  <!-- ============ ① 净值与超额 ============ -->
+  <section class="card">
+    <h2>① 净值与超额</h2>
+    <div class="sub">所有曲线起点统一归一为 1.0000，起点固定、永不重设。灰线为基准，仅供对比参照。</div>
+
+    <svg class="chart" viewBox="0 0 900 380" role="img" aria-label="净值曲线示意图">
+      <!-- 网格 -->
+      <g stroke="#eef2f6" stroke-width="1">
+        <line x1="60" y1="60"  x2="870" y2="60"/>
+        <line x1="60" y1="125" x2="870" y2="125"/>
+        <line x1="60" y1="190" x2="870" y2="190"/>
+        <line x1="60" y1="255" x2="870" y2="255"/>
+        <line x1="60" y1="320" x2="870" y2="320"/>
+      </g>
+      <!-- 坐标轴 -->
+      <line x1="60" y1="40" x2="60" y2="330" stroke="#c8d2dc" stroke-width="1.5"/>
+      <line x1="60" y1="330" x2="870" y2="330" stroke="#c8d2dc" stroke-width="1.5"/>
+      <g fill="#93a1b0" font-size="11.5" font-family="sans-serif">
+        <text x="22" y="64">1.20</text>
+        <text x="22" y="129">1.15</text>
+        <text x="22" y="194">1.10</text>
+        <text x="22" y="259">1.05</text>
+        <text x="22" y="324">1.00</text>
+      </g>
+
+      <!-- 基准（灰） -->
+      <polyline fill="none" stroke="#9aa5b1" stroke-width="2" stroke-dasharray="6 5"
+        points="60,300 150,306 240,312 330,309 420,302 510,298 600,294 690,291 780,288 870,284"/>
+      <!-- 模拟盘多路径聚合（深蓝） -->
+      <polyline fill="none" stroke="#1b3a6b" stroke-width="2.5"
+        points="60,300 150,290 240,277 330,268 420,254 510,243 600,234 690,223 780,214 870,206"/>
+      <!-- 自有资金单路径实盘（青绿） -->
+      <polyline fill="none" stroke="#0f766e" stroke-width="2.5"
+        points="60,302 150,295 240,284 330,279 420,268 510,259 600,253 690,245 780,238 870,231"/>
+    </svg>
+
+    <div class="legend">
+      <span><i class="c-sim"></i>模拟盘（50 路径聚合·脱敏）</span>
+      <span><i class="c-real"></i>自有资金单路径实盘</span>
+      <span><i class="c-bench"></i>基准（<span class="ph">请注明：如中证500指数</span>）</span>
+    </div>
+    <div class="tbl-note">曲线为示意；正式部署时由每日数据自动绘制。模拟盘与实盘分栏展示、分别标注，不合并计算。</div>
+  </section>
+
+  <!-- ============ ② 逐周数据表 ============ -->
+  <section class="card">
+    <h2>② 逐周数据表</h2>
+    <div class="sub">按交易周记录。备注栏只写事实性说明，不写任何预测与主观判断。</div>
+    <table>
+      <thead>
+        <tr>
+          <th>日期</th><th>净值</th><th>当期收益</th><th>累计收益</th>
+          <th>基准</th><th>累计超额</th><th>滚动回撤(20日)</th><th>路径偏离度</th><th>备注</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="ph">2026-XX-XX</td><td>1.0000</td><td>—</td><td>0.00%</td><td>0.00%</td><td>0.00%</td><td>0.00%</td><td>0.00%</td><td class="ph">起始日</td></tr>
+        <tr><td class="ph">2026-XX-XX</td><td class="ph">X.XXXX</td><td class="ph">+0.XX%</td><td class="ph">+X.XX%</td><td class="ph">+X.XX%</td><td class="ph">+X.XX%</td><td class="ph">-X.XX%</td><td class="ph">0.0X%</td><td class="ph">—</td></tr>
+        <tr><td class="ph">2026-XX-XX</td><td class="ph">X.XXXX</td><td class="ph">-0.XX%</td><td class="ph">+X.XX%</td><td class="ph">+X.XX%</td><td class="ph">+X.XX%</td><td class="ph">-X.XX%</td><td class="ph">0.0X%</td><td class="ph">该周有 2 日停牌</td></tr>
+        <tr><td class="ph">2026-XX-XX</td><td class="ph">X.XXXX</td><td class="ph">+0.XX%</td><td class="ph">+X.XX%</td><td class="ph">+X.XX%</td><td class="ph">+X.XX%</td><td class="ph">-X.XX%</td><td class="ph">0.0X%</td><td class="ph">—</td></tr>
+      </tbody>
+    </table>
+    <div class="tbl-note">
+      字段口径：净值＝固定起点归一值；基准＝同期对应指数（须注明具体指数）；滚动回撤＝近 20 个交易日；
+      路径偏离度＝当日模拟盘实际轨迹与事后重跑回测轨迹的偏离（见 ③）。
+    </div>
+  </section>
+
+  <!-- ============ ③ 回测一致性验证（核心） ============ -->
+  <section class="card">
+    <h2>③ 回测一致性验证（核心模块）</h2>
+    <div class="sub">模拟盘事前运行 vs 回测事后重跑。两者偏离度极小，说明回测系统与交易执行系统是同一套逻辑。</div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="k">模拟盘累计净值</div><div class="v ph">X.XXXX</div></div>
+      <div class="kpi"><div class="k">重跑回测累计净值</div><div class="v ph">X.XXXX</div></div>
+      <div class="kpi"><div class="k">累计偏离度</div><div class="v good ph">0.0X%</div></div>
+      <div class="kpi"><div class="k">单路径最大偏离</div><div class="v ph">0.0X%</div></div>
+      <div class="kpi"><div class="k">单路径最小偏离</div><div class="v ph">-0.0X%</div></div>
+    </div>
+
+    <ul class="split">
+      <li><span class="lbl">部分成交差异</span><span class="num ph">+0.0X%</span></li>
+      <li><span class="lbl">涨跌停 / 停牌导致无法成交</span><span class="num ph">+0.0X%</span></li>
+      <li><span class="lbl">撮合档位差异</span><span class="num ph">±0.0X%</span></li>
+      <li><span class="lbl">浮点计算精度</span><span class="num">&lt; 0.01%</span></li>
+      <li><span class="lbl">未解释偏离</span><span class="num zero">0.00%</span></li>
+    </ul>
+
+    <div class="method">
+      <ol>
+        <li>模拟盘于起始日启动，由<strong>事前生成的信号文件</strong>驱动逐日交易，执行行为发生在行情出现之前。</li>
+        <li>每个交易日收盘后，当日信号文件、成交记录、持仓快照均写入版本库并固化；信号文件的哈希值逐日公开，文件本身不公开。</li>
+        <li>每次更新时，使用<strong>起始日锁定的执行层代码</strong>（提交号 <code class="ph">XXXXXXXX</code>）与<strong>锁定参数</strong>（<code class="ph">vX.X</code>）重新回测至当前截止日。</li>
+        <li>对比模拟盘实际轨迹与回测复现轨迹的偏离度，并逐项拆解偏离来源，直至"未解释偏离"为零。</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ ④ 执行层审计区 ============ -->
+  <section class="card">
+    <h2>④ 执行层审计</h2>
+    <div class="sub">执行层可公开、信号层须私有。以下为披露边界清单。</div>
+    <div class="audit-grid">
+      <div class="panel pub">
+        <h3>✓ 可公开</h3>
+        <ul>
+          <li>交易时段：<span class="ph">如尾盘最后 10 分钟</span></li>
+          <li>成交价假设：<span class="ph">如按对手盘 1 档计</span></li>
+          <li>成本模型参数：<span class="ph">佣金 / 印花税 / 冲击成本假设</span></li>
+          <li>模拟盘与回测的逐路径偏离度</li>
+          <li>执行层代码仓库：<code class="ph">（可放链接）</code></li>
+        </ul>
+      </div>
+      <div class="panel priv">
+        <h3>✗ 不公开</h3>
+        <ul>
+          <li>标的池构成与筛选规则</li>
+          <li>信号生成逻辑与内生因子定义</li>
+          <li>参数取值与调优过程</li>
+          <li>资金分配与聚合的具体算法</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ⑤ 记录说明与免责声明 ============ -->
+  <section class="card">
+    <h2>⑤ 记录说明与免责声明</h2>
+    <div class="disclaimer">
+      <p>本页为个人量化研究的过程记录，用于展示策略研究与验证方法，<strong>不构成任何投资建议、要约或收益承诺</strong>。</p>
+      <p>数据来源：自有资金实盘账户与模拟交易环境。所有净值起点固定、逐日留痕，历史版本不可篡改；模拟盘数据与实盘数据分栏展示，不作合并计算。</p>
+      <p>本页不向任何主体募集资金，不涉及任何形式的代客理财、收益分成或付费荐股，不包含任何具体标的推荐与买卖点位。</p>
+      <p>历史数据不代表未来表现。本页内容仅供具备相应专业能力的读者参考。</p>
+    </div>
+  </section>
+
+  <footer class="page">机制主导量化 · 研究记录 ｜ 本页为个人研究材料，非公开宣传</footer>
+
+</div>
+</body>
+</html>
